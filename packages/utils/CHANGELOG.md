@@ -3,6 +3,24 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [1.8.0](https://github.com/latticexyz/mud/compare/v1.7.1...v1.8.0) (2022-10-07)
+
+**Note:** Version bump only for package @latticexyz/utils
+
+## [1.7.1](https://github.com/latticexyz/mud/compare/v1.7.0...v1.7.1) (2022-10-06)
+
+**Note:** Version bump only for package @latticexyz/utils
+
+# [1.7.0](https://github.com/latticexyz/mud/compare/v1.6.0...v1.7.0) (2022-10-06)
+
+### Features
+
+- add utils to normalize hex ids ([#185](https://github.com/latticexyz/mud/issues/185)) ([170e963](https://github.com/latticexyz/mud/commit/170e963eebce61b27d1b999f8afd8c8e176a739c))
+
+# [1.6.0](https://github.com/latticexyz/mud/compare/v1.5.1...v1.6.0) (2022-10-04)
+
+**Note:** Version bump only for package @latticexyz/utils
+
 ## [1.5.1](https://github.com/latticexyz/mud/compare/v1.5.0...v1.5.1) (2022-10-03)
 
 **Note:** Version bump only for package @latticexyz/utils

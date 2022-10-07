@@ -3,6 +3,47 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [1.8.0](https://github.com/latticexyz/mud/compare/v1.7.1...v1.8.0) (2022-10-07)
+
+### Bug Fixes
+
+- **network:** use websocket to subscribe to relayer messages ([8218249](https://github.com/latticexyz/mud/commit/8218249a228a6b3acd52776b653688aa8d73e9a9))
+- **relay:** open stream grpc endpoint not properly closing ([#187](https://github.com/latticexyz/mud/issues/187)) ([1db4a7d](https://github.com/latticexyz/mud/commit/1db4a7dd8fbc9220a75b6b3f6fb8d9b91d5cd605))
+
+### Features
+
+- connected relayer clients ([#188](https://github.com/latticexyz/mud/issues/188)) ([dc3fcdf](https://github.com/latticexyz/mud/commit/dc3fcdf7a02f3cced981ca933faf145c38b43fe0))
+- **network:** expose connectedAddressChecksum ([#189](https://github.com/latticexyz/mud/issues/189)) ([e39d245](https://github.com/latticexyz/mud/commit/e39d245f62e5edf91896a39bb52c993df814ffb6))
+- wss for stream service ([#186](https://github.com/latticexyz/mud/issues/186)) ([d4511ac](https://github.com/latticexyz/mud/commit/d4511acb1805ddacc71f83cdd9dc7858bd07aee1))
+
+## [1.7.1](https://github.com/latticexyz/mud/compare/v1.7.0...v1.7.1) (2022-10-06)
+
+**Note:** Version bump only for package mud
+
+# [1.7.0](https://github.com/latticexyz/mud/compare/v1.6.0...v1.7.0) (2022-10-06)
+
+### Bug Fixes
+
+- **ecs-browser:** do not early return for entity 0 ([bf36cc0](https://github.com/latticexyz/mud/commit/bf36cc0288449f0f7dce72e35a49b6c6f6a8fa2b))
+- **relay:** proper interval rate limiting and flag to control account balance check ([#181](https://github.com/latticexyz/mud/issues/181)) ([e84ae44](https://github.com/latticexyz/mud/commit/e84ae445962d5f3e432cfb4a7229a813eb47b681))
+
+### Features
+
+- add utils to normalize hex ids ([#185](https://github.com/latticexyz/mud/issues/185)) ([170e963](https://github.com/latticexyz/mud/commit/170e963eebce61b27d1b999f8afd8c8e176a739c))
+- general service improvements ([#179](https://github.com/latticexyz/mud/issues/179)) ([e0dac83](https://github.com/latticexyz/mud/commit/e0dac83df6c4ab56c2db583e8d3d1d2541d1cd72))
+- **services:** service-side changes for health probes ([#183](https://github.com/latticexyz/mud/issues/183)) ([da4cf91](https://github.com/latticexyz/mud/commit/da4cf914527ba7c09588d7dd1ac8836bd4378534))
+- **soleces:** expose component functions set and remove internally without onlyWriter permissions ([#182](https://github.com/latticexyz/mud/issues/182)) ([662936b](https://github.com/latticexyz/mud/commit/662936bdeee38ac0da735c987413816b14b0218d))
+
+# [1.6.0](https://github.com/latticexyz/mud/compare/v1.5.1...v1.6.0) (2022-10-04)
+
+### Bug Fixes
+
+- make OverridableComponent conform with Component type ([#180](https://github.com/latticexyz/mud/issues/180)) ([c9d2c31](https://github.com/latticexyz/mud/commit/c9d2c311aa1c86d9bcabdf67eee598c264618ad0))
+
+### Features
+
+- flag for sig verification, rate limiting of push, and check for balance when relaying ([#175](https://github.com/latticexyz/mud/issues/175)) ([0271ac9](https://github.com/latticexyz/mud/commit/0271ac9eb17fc1353e58ed11f6f6064e50956762))
+
 ## [1.5.1](https://github.com/latticexyz/mud/compare/v1.5.0...v1.5.1) (2022-10-03)
 
 **Note:** Version bump only for package mud

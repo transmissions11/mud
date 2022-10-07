@@ -3,6 +3,37 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+# [1.8.0](https://github.com/latticexyz/mud/compare/v1.7.1...v1.8.0) (2022-10-07)
+
+### Bug Fixes
+
+- **relay:** open stream grpc endpoint not properly closing ([#187](https://github.com/latticexyz/mud/issues/187)) ([1db4a7d](https://github.com/latticexyz/mud/commit/1db4a7dd8fbc9220a75b6b3f6fb8d9b91d5cd605))
+
+### Features
+
+- wss for stream service ([#186](https://github.com/latticexyz/mud/issues/186)) ([d4511ac](https://github.com/latticexyz/mud/commit/d4511acb1805ddacc71f83cdd9dc7858bd07aee1))
+
+## [1.7.1](https://github.com/latticexyz/mud/compare/v1.7.0...v1.7.1) (2022-10-06)
+
+**Note:** Version bump only for package @latticexyz/services
+
+# [1.7.0](https://github.com/latticexyz/mud/compare/v1.6.0...v1.7.0) (2022-10-06)
+
+### Bug Fixes
+
+- **relay:** proper interval rate limiting and flag to control account balance check ([#181](https://github.com/latticexyz/mud/issues/181)) ([e84ae44](https://github.com/latticexyz/mud/commit/e84ae445962d5f3e432cfb4a7229a813eb47b681))
+
+### Features
+
+- general service improvements ([#179](https://github.com/latticexyz/mud/issues/179)) ([e0dac83](https://github.com/latticexyz/mud/commit/e0dac83df6c4ab56c2db583e8d3d1d2541d1cd72))
+- **services:** service-side changes for health probes ([#183](https://github.com/latticexyz/mud/issues/183)) ([da4cf91](https://github.com/latticexyz/mud/commit/da4cf914527ba7c09588d7dd1ac8836bd4378534))
+
+# [1.6.0](https://github.com/latticexyz/mud/compare/v1.5.1...v1.6.0) (2022-10-04)
+
+### Features
+
+- flag for sig verification, rate limiting of push, and check for balance when relaying ([#175](https://github.com/latticexyz/mud/issues/175)) ([0271ac9](https://github.com/latticexyz/mud/commit/0271ac9eb17fc1353e58ed11f6f6064e50956762))
+
 ## [1.5.1](https://github.com/latticexyz/mud/compare/v1.5.0...v1.5.1) (2022-10-03)
 
 **Note:** Version bump only for package @latticexyz/services

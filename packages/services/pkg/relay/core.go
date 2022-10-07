@@ -8,12 +8,18 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
+	"go.uber.org/zap"
+	"golang.org/x/time/rate"
 )
 
 type RelayServerConfig struct {
 	IdleTimeoutTime       int
 	IdleDisconnectIterval int
 	MessageDriftTime      int
+
+	VerifyMessageSignature bool
+	VerifyAccountBalance   bool
+	MessageRateLimit       int
 }
 
 type Client struct {
@@ -21,7 +27,13 @@ type Client struct {
 	channel             chan *pb.Message
 	connected           bool
 	latestPingTimestamp int64
-	mutex               sync.Mutex
+
+	balancePresent           bool
+	balancePresentLimiter    *rate.Limiter
+	balanceNotPresentLimiter *rate.Limiter
+	messageRateLimiter       *rate.Limiter
+
+	mutex sync.Mutex
 }
 
 func (client *Client) Connect() {
@@ -29,17 +41,15 @@ func (client *Client) Connect() {
 	client.channel = make(chan *pb.Message)
 	client.connected = true
 	client.mutex.Unlock()
+	logger.GetLogger().Info("connected client", zap.String("client", client.identity.Name))
 }
 
 func (client *Client) Disconnect() {
-	// Disconnect and close the channel only if client is still connected.
-	if !client.IsConnected() {
-		return
-	}
 	client.mutex.Lock()
 	close(client.channel)
 	client.connected = false
 	client.mutex.Unlock()
+	logger.GetLogger().Info("disconnected client", zap.String("client", client.identity.Name))
 }
 
 func (client *Client) Ping() {
@@ -62,6 +72,26 @@ func (client *Client) GetChannel() chan *pb.Message {
 
 func (client *Client) GetIdentity() *pb.Identity {
 	return client.identity
+}
+
+func (client *Client) GetLimiter() *rate.Limiter {
+	return client.messageRateLimiter
+}
+
+func (client *Client) HasBalance() bool {
+	return client.balancePresent
+}
+
+func (client *Client) SetHasBalance(hasBalance bool) {
+	client.balancePresent = hasBalance
+}
+
+func (client *Client) ShouldCheckBalance() bool {
+	if client.balancePresent {
+		return client.balancePresentLimiter.Allow()
+	} else {
+		return client.balanceNotPresentLimiter.Allow()
+	}
 }
 
 type ClientRegistry struct {
@@ -139,13 +169,21 @@ func (registry *ClientRegistry) IsRegistered(identity *pb.Identity) bool {
 	return false
 }
 
-func (registry *ClientRegistry) Register(identity *pb.Identity) {
+func (registry *ClientRegistry) Register(identity *pb.Identity, config *RelayServerConfig) {
 	registry.mutex.Lock()
 
 	newClient := new(Client)
 	newClient.identity = identity
 	newClient.channel = make(chan *pb.Message)
 	newClient.connected = false
+	newClient.messageRateLimiter = rate.NewLimiter(rate.Every(1*time.Second/time.Duration(config.MessageRateLimit)), config.MessageRateLimit)
+
+	// At most allow a check for balance every 60s if client has funds and every 10s if not.
+	newClient.balancePresentLimiter = rate.NewLimiter(rate.Limit(float64(1)/float64(60)), 1)
+	newClient.balanceNotPresentLimiter = rate.NewLimiter(rate.Limit(float64(1)/float64(10)), 1)
+
+	newClient.balancePresent = false
+
 	registry.clients = append(registry.clients, newClient)
 
 	registry.mutex.Unlock()

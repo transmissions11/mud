@@ -4,12 +4,14 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"latticexyz/mud/packages/services/pkg/eth"
 	"latticexyz/mud/packages/services/pkg/relay"
 	"latticexyz/mud/packages/services/pkg/utils"
 	pb "latticexyz/mud/packages/services/protobuf/go/ecs-relay"
 	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"go.uber.org/zap"
 )
 
@@ -18,8 +20,9 @@ type ecsRelayServer struct {
 	relay.ClientRegistry
 	relay.SubscriptionRegistry
 
-	config *relay.RelayServerConfig
-	logger *zap.Logger
+	ethClient *ethclient.Client
+	config    *relay.RelayServerConfig
+	logger    *zap.Logger
 }
 
 func (server *ecsRelayServer) Init() {
@@ -51,7 +54,9 @@ func (server *ecsRelayServer) DisconnectIdleClientsWorker(ticker *time.Ticker, q
 		select {
 		case <-ticker.C:
 			countDisconnected := server.DisconnectIdleClients(server.config.IdleTimeoutTime)
-			server.logger.Info("done disconnecting idle clients", zap.Int("count", countDisconnected))
+			if countDisconnected > 0 {
+				server.logger.Info("done disconnecting idle clients", zap.Int("count", countDisconnected))
+			}
 		case <-quit:
 			ticker.Stop()
 			return
@@ -75,7 +80,7 @@ func (server *ecsRelayServer) Authenticate(ctx context.Context, signature *pb.Si
 	server.logger.Info("successfully authenticated client", zap.String("name", identity.Name))
 
 	if !server.IsRegistered(identity) {
-		server.Register(identity)
+		server.Register(identity, server.config)
 		server.logger.Info("registered new client identity", zap.String("name", identity.Name))
 	} else {
 		server.logger.Warn("client identity already registered", zap.String("name", identity.Name))
@@ -205,26 +210,27 @@ func (server *ecsRelayServer) OpenStream(signature *pb.Signature, stream pb.ECSR
 		return err
 	}
 
-	if !client.IsConnected() {
-		server.logger.Info("opening stream", zap.String("client", identity.Name))
-		client.Connect()
-	} else {
-		server.logger.Info("reusing already opened stream", zap.String("client", identity.Name))
+	if client.IsConnected() {
+		server.logger.Info("closing opened channel, since already connected", zap.String("client", identity.Name))
+		client.Disconnect()
 	}
+
+	client.Connect()
 	client.Ping()
 
-	for msg := range client.GetChannel() {
-		if err := stream.Send(msg); err != nil {
-			server.logger.Info("closing stream due to error", zap.String("client", identity.Name), zap.Error(err))
-			client.Disconnect()
-			return err
+	relayedMessagesChannel := client.GetChannel()
+	for {
+		select {
+		case <-stream.Context().Done():
+			server.logger.Info("client closed stream")
+			if client.IsConnected() {
+				client.Disconnect()
+			}
+			return nil
+		case relayedMessage := <-relayedMessagesChannel:
+			stream.Send(relayedMessage)
 		}
 	}
-
-	server.logger.Info("closing stream", zap.String("client", identity.Name))
-	client.Disconnect()
-
-	return nil
 }
 
 func (server *ecsRelayServer) VerifyMessageSignature(message *pb.Message, identity *pb.Identity) (bool, string, error) {
@@ -258,13 +264,16 @@ func (server *ecsRelayServer) VerifyMessage(message *pb.Message, identity *pb.Id
 		return fmt.Errorf("signature is not defined")
 	}
 
-	// Recover the signer to verify that it is the same identity as the one making the RPC call.
-	isVerified, recoveredAddress, err := server.VerifyMessageSignature(message, identity)
-	if err != nil {
-		return fmt.Errorf("error while verifying message: %s", err.Error())
-	}
-	if !isVerified {
-		return fmt.Errorf("recovered signer %s != identity %s", recoveredAddress, identity.Name)
+	// Verify that the message is OK to relay if config flag is on.
+	if server.config.VerifyMessageSignature {
+		// Recover the signer to verify that it is the same identity as the one making the RPC call.
+		isVerified, recoveredAddress, err := server.VerifyMessageSignature(message, identity)
+		if err != nil {
+			return fmt.Errorf("error while verifying message: %s", err.Error())
+		}
+		if !isVerified {
+			return fmt.Errorf("recovered signer %s != identity %s", recoveredAddress, identity.Name)
+		}
 	}
 
 	// For every message verify that the timestamp is within an acceptable drift time.
@@ -273,6 +282,33 @@ func (server *ecsRelayServer) VerifyMessage(message *pb.Message, identity *pb.Id
 		return fmt.Errorf("message is older than acceptable drift: %.2f seconds old", messageAge)
 	}
 
+	return nil
+}
+
+func (server *ecsRelayServer) VerifySufficientBalance(client *relay.Client, address string) error {
+	// If the flag to verify account balance is turned off, do nothing.
+	if !server.config.VerifyAccountBalance {
+		return nil
+	}
+
+	if client.ShouldCheckBalance() {
+		balance, err := eth.GetCurrentBalance(server.ethClient, address)
+		if err != nil {
+			return err
+		}
+		server.logger.Info("fetched up-to-date balance for account", zap.String("address", address), zap.Uint64("balance", balance))
+
+		// Update the "cached" balance on the client, which helps us know whether to keep checking or not.
+		client.SetHasBalance(balance > 0)
+
+		if balance == 0 {
+			return fmt.Errorf("client with address %s has insufficient balance to push messages via relay", address)
+		}
+	} else {
+		if !client.HasBalance() {
+			return fmt.Errorf("client with address %s has insufficient balance as of last check", address)
+		}
+	}
 	return nil
 }
 
@@ -289,13 +325,29 @@ func (server *ecsRelayServer) HandlePushRequest(request *pb.PushRequest) error {
 		Name: recoveredAddress,
 	}
 
+	// Get the client object for this identity to make sure it's authenticated.
 	client, err := server.GetClientFromIdentity(identity)
 	if err != nil {
 		return err
 	}
 
-	// Verify that the message is OK to relay.
+	// Check if the authenticated client has a balance. We permit pushes of messages only for
+	// clients which have a non-zero balance. The checks to Ethereum client are rate limited such
+	// that we don't check balance on every request.
+	err = server.VerifySufficientBalance(client, recoveredAddress)
+	if err != nil {
+		return err
+	}
+
+	// Rate limit the client, if necessary.
+	if !client.GetLimiter().Allow() {
+		return fmt.Errorf("client rate limited, max %d msg push / second allowed", server.config.MessageRateLimit)
+	}
+
+	// Get the message.
 	message := request.Message
+
+	// Verify that the message is OK to relay.
 	err = server.VerifyMessage(message, identity)
 	if err != nil {
 		return err

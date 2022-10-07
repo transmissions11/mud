@@ -30,6 +30,8 @@ import {
   ECSStreamServiceDefinition,
 } from "@latticexyz/services/protobuf/ts/ecs-stream/ecs-stream";
 import { createChannel, createClient } from "nice-grpc-web";
+import { formatComponentID, formatEntityID } from "../utils";
+import { grpc } from "@improbable-eng/grpc-web";
 
 /**
  * Create a ECSStateSnapshotServiceClient
@@ -46,7 +48,7 @@ export function createSnapshotClient(url: string): ECSStateSnapshotServiceClient
  * @returns ECSStreamServiceClient
  */
 export function createStreamClient(url: string): ECSStreamServiceClient {
-  return createClient(ECSStreamServiceDefinition, createChannel(url));
+  return createClient(ECSStreamServiceDefinition, createChannel(url, grpc.WebsocketTransport()));
 }
 
 /**
@@ -313,7 +315,7 @@ export function createDecode(worldConfig: ContractConfig, provider: JsonRpcProvi
     // Create the decoder if it doesn't exist yet
     if (!decoders[componentId]) {
       const address = componentAddress || (await world.getComponent(componentId));
-      console.info("Creating decoder for", address);
+      console.info("[SyncUtils] Creating decoder for", address);
       const component = new Contract(address, ComponentAbi, provider) as Component;
       const [keys, values] = await component.getSchema();
       decoders[componentId] = createDecoder(keys, values);
@@ -371,8 +373,8 @@ export function createFetchWorldEventsInBlockRange<C extends Components>(
         componentId: BigNumber;
       };
 
-      const component = to256BitString(BigNumber.from(rawComponentId).toHexString());
-      const entity = BigNumber.from(entityId).toHexString() as EntityID;
+      const component = formatComponentID(rawComponentId);
+      const entity = formatEntityID(entityId);
       const blockNumber = to;
 
       const ecsEvent = {
@@ -417,8 +419,8 @@ export function createTransformWorldEventsFromStream(decode: ReturnType<typeof c
       const entityId = ecsEvent.entityId;
       const txHash = ecsEvent.tx;
 
-      const component = to256BitString(BigNumber.from(rawComponentId).toHexString());
-      const entity = to256BitString(BigNumber.from(entityId).toHexString()) as EntityID;
+      const component = formatComponentID(rawComponentId);
+      const entity = formatEntityID(entityId);
 
       const value = ecsEvent.eventType === "ComponentValueSet" ? await decode(component, ecsEvent.value) : undefined;
 
